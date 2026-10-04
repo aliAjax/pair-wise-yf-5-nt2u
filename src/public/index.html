@@ -1,0 +1,357 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>充电运营台</title>
+<style>
+  :root{
+    --bg:#0f1420; --panel:#182033; --panel2:#1f2942; --line:#2a3656;
+    --text:#e6ecf5; --muted:#8b97b3; --accent:#4f8cff; --ok:#2fbf71;
+    --warn:#f5a623; --bad:#ef5b6e; --purple:#9b6dff;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Microsoft YaHei",sans-serif;background:var(--bg);color:var(--text);font-size:14px}
+  header{display:flex;align-items:center;gap:16px;padding:14px 22px;border-bottom:1px solid var(--line);background:var(--panel);position:sticky;top:0;z-index:10}
+  header h1{font-size:18px;margin:0;font-weight:600}
+  header .sub{color:var(--muted);font-size:12px}
+  .wrap{padding:20px 22px;max-width:1400px;margin:0 auto}
+  .grid{display:grid;gap:16px}
+  .grid.cols-2{grid-template-columns:1fr 1fr}
+  .grid.cols-3{grid-template-columns:repeat(3,1fr)}
+  .grid.cols-4{grid-template-columns:repeat(4,1fr)}
+  @media(max-width:1000px){.grid.cols-2,.grid.cols-3,.grid.cols-4{grid-template-columns:1fr}}
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:16px}
+  .card h2{margin:0 0 12px;font-size:14px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;display:flex;align-items:center;justify-content:space-between}
+  .card h2 .tag{font-size:11px;color:var(--muted);text-transform:none;letter-spacing:0}
+  .row{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+  .row>*{flex:1;min-width:120px}
+  label{display:block;font-size:12px;color:var(--muted);margin-bottom:4px}
+  input,select,textarea{width:100%;background:var(--panel2);border:1px solid var(--line);color:var(--text);border-radius:6px;padding:8px 10px;font-size:13px;font-family:inherit}
+  input:focus,select:focus,textarea:focus{outline:none;border-color:var(--accent)}
+  textarea{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:12px;min-height:80px}
+  button{background:var(--accent);color:#fff;border:none;border-radius:6px;padding:8px 14px;font-size:13px;cursor:pointer;font-weight:600}
+  button:hover{filter:brightness(1.1)}
+  button.ghost{background:var(--panel2);color:var(--text);border:1px solid var(--line)}
+  button.ok{background:var(--ok)}
+  button.warn{background:var(--warn)}
+  button.bad{background:var(--bad)}
+  button.sm{padding:5px 10px;font-size:12px}
+  table{width:100%;border-collapse:collapse;font-size:13px}
+  th,td{text-align:left;padding:7px 8px;border-bottom:1px solid var(--line)}
+  th{color:var(--muted);font-weight:500;font-size:12px}
+  td.num{font-variant-numeric:tabular-nums}
+  .pill{display:inline-block;padding:2px 8px;border-radius:20px;font-size:11px;font-weight:600}
+  .pill.free{background:rgba(47,191,113,.15);color:var(--ok)}
+  .pill.busy{background:rgba(245,166,35,.15);color:var(--warn)}
+  .pill.active{background:rgba(79,140,255,.18);color:var(--accent)}
+  .pill.settled{background:rgba(155,109,255,.18);color:var(--purple)}
+  .pill.waiting{background:rgba(245,166,35,.15);color:var(--warn)}
+  .pill.under{background:rgba(239,91,110,.15);color:var(--bad)}
+  .pill.over{background:rgba(155,109,255,.18);color:var(--purple)}
+  .pill.matched{background:rgba(47,191,113,.15);color:var(--ok)}
+  .spot{background:var(--panel2);border:1px solid var(--line);border-radius:8px;padding:12px}
+  .spot .code{font-size:16px;font-weight:700}
+  .spot .meta{font-size:12px;color:var(--muted);margin-top:4px}
+  .gauge{height:10px;background:var(--panel2);border-radius:6px;overflow:hidden;margin-top:8px}
+  .gauge>i{display:block;height:100%;background:linear-gradient(90deg,var(--ok),var(--warn));transition:width .4s}
+  .kpi{font-size:26px;font-weight:700;font-variant-numeric:tabular-nums}
+  .kpi small{font-size:13px;color:var(--muted);font-weight:400}
+  .muted{color:var(--muted)}
+  .mono{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:12px}
+  #toast{position:fixed;bottom:20px;right:20px;background:var(--panel2);border:1px solid var(--line);padding:10px 16px;border-radius:8px;font-size:13px;opacity:0;transition:opacity .3s;z-index:50;max-width:360px}
+  #toast.show{opacity:1}
+  #toast.err{border-color:var(--bad);color:var(--bad)}
+  .empty{color:var(--muted);font-size:12px;padding:8px 0}
+  .toolbar{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:12px}
+  .toolbar select{max-width:220px}
+  .online-dot{display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:6px}
+  .online-dot.on{background:var(--ok)} .online-dot.off{background:var(--bad)}
+</style>
+</head>
+<body>
+<header>
+  <h1>⚡ 充电运营台</h1>
+  <span class="sub">排队调度 · 断网续计 · 电价重算 · 月度对账</span>
+  <div style="flex:1"></div>
+  <label class="row" style="flex:0;min-width:auto;gap:6px">
+    <input type="checkbox" id="autoRefresh" checked style="width:auto"> <span class="muted">自动刷新</span>
+  </label>
+</header>
+
+<div class="wrap">
+  <div class="toolbar">
+    <label style="flex:0;min-width:auto">站点</label>
+    <select id="stationSelect"></select>
+    <button class="ghost sm" onclick="refresh()">刷新</button>
+    <span style="flex:1"></span>
+    <span id="onlineBadge" class="muted"></span>
+    <button class="ghost sm" id="onlineBtn" onclick="toggleOnline()">断网</button>
+  </div>
+
+  <div class="grid cols-4" style="margin-bottom:16px">
+    <div class="card"><div class="kpi" id="kpiLoad">0<small> kW</small></div><div class="muted" style="margin-top:4px">实时负载 / <span id="kpiCap">0</span> kW</div><div class="gauge"><i id="gaugeBar" style="width:0"></i></div></div>
+    <div class="card"><div class="kpi" id="kpiActive">0</div><div class="muted" style="margin-top:4px">进行中会话</div></div>
+    <div class="card"><div class="kpi" id="kpiQueue">0</div><div class="muted" style="margin-top:4px">排队等候</div></div>
+    <div class="card"><div class="kpi" id="kpiBills">0</div><div class="muted" style="margin-top:4px">已出账单</div></div>
+  </div>
+
+  <div class="grid cols-2" style="margin-bottom:16px">
+    <div class="card">
+      <h2>充电位 <span class="tag">一位一会话</span></h2>
+      <div id="spots" class="grid cols-3"></div>
+    </div>
+    <div class="card">
+      <h2>排队队列 <span class="tag">按提交先后补位</span></h2>
+      <div id="queue"></div>
+    </div>
+  </div>
+
+  <div class="card" style="margin-bottom:16px">
+    <h2>进行中会话 <span class="tag">未结算 · 电价变化即重算</span></h2>
+    <div id="active"></div>
+  </div>
+
+  <div class="grid cols-2" style="margin-bottom:16px">
+    <div class="card">
+      <h2>启动 / 停止</h2>
+      <div class="row" style="margin-bottom:10px">
+        <div><label>充电位</label><select id="fSpot"></select></div>
+        <div><label>功率 kW</label><input id="fPower" type="number" value="60"></div>
+        <div><label>请求ID(幂等)</label><input id="fReq" placeholder="如 r1"></div>
+        <div style="flex:0;min-width:auto"><label> </label><button class="ok" onclick="doStart()">启动</button></div>
+      </div>
+      <div class="row">
+        <div><label>会话 / 位</label><select id="fStopSession"></select></div>
+        <div><label>上报ID(幂等)</label><input id="fReport" placeholder="如 stop-r1"></div>
+        <div style="flex:0;min-width:auto"><label> </label><button class="warn" onclick="doStop()">停止结算</button></div>
+      </div>
+      <div class="row" style="margin-top:10px">
+        <button class="ghost sm" onclick="demoRush()">演示晚高峰（A 位排 3 单）</button>
+      </div>
+    </div>
+    <div class="card">
+      <h2>电价时段 <span class="tag">尖/峰/平/谷</span></h2>
+      <div class="row" style="margin-bottom:10px">
+        <button class="ghost sm" onclick="setPrice('tou')">默认分时</button>
+        <button class="ghost sm" onclick="setPrice('flat1')">全日 1.0</button>
+        <button class="ghost sm" onclick="setPrice('flat2')">全日 2.0</button>
+        <button class="ghost sm" onclick="setPrice('flat3')">全日 3.0</button>
+      </div>
+      <div id="priceCur" class="mono muted" style="white-space:pre-wrap"></div>
+    </div>
+  </div>
+
+  <div class="card" style="margin-bottom:16px">
+    <h2>月度对账 <span class="tag">少收 / 多收 分列</span></h2>
+    <div class="row" style="margin-bottom:10px">
+      <div style="flex:0;min-width:140px"><label>账期 YYYY-MM</label><input id="reconPeriod" value="2026-10"></div>
+      <div style="flex:0;min-width:auto"><label> </label><button onclick="doReconcile()">上传渠道流水并对账</button></div>
+    </div>
+    <label>支付渠道流水（JSON 数组，sessionCode / channelAmount）</label>
+    <textarea id="reconEntries" placeholder='[{"sessionCode":"ST01S0001","channelAmount":10}]'></textarea>
+    <div id="reconResult" style="margin-top:12px"></div>
+  </div>
+
+  <div class="card">
+    <h2>已出账账单 <span class="tag">冻结不变</span></h2>
+    <div id="bills"></div>
+  </div>
+</div>
+<div id="toast"></div>
+
+<script>
+const $ = (id) => document.getElementById(id);
+let stations = [], cur = null, data = null;
+
+async function api(path, opts){
+  const res = await fetch(path, {headers:{'content-type':'application/json'}, ...opts});
+  const j = await res.json().catch(()=>({}));
+  if(!res.ok) throw new Error(j.error || ('HTTP '+res.status));
+  return j;
+}
+function toast(msg, err){ const t=$('toast'); t.textContent=msg; t.className='show'+(err?' err':''); setTimeout(()=>t.className='',2600); }
+const yuan = (n) => (n==null?'-':Number(n).toFixed(2));
+const kw = (n) => Number(n).toFixed(1);
+const fmtTime = (ms) => ms ? new Date(ms).toLocaleTimeString('zh-CN',{hour12:false}) : '-';
+
+async function loadStations(){
+  stations = await api('/api/stations');
+  const sel = $('stationSelect');
+  sel.innerHTML = stations.map(s=>`<option value="${s.id}">${s.code} · ${s.name}（${s.transformer_capacity_kw}kW）</option>`).join('');
+  if(!stations.length){
+    const code = 'ST' + String(Math.floor(Math.random()*900)+100);
+    await api('/api/stations',{method:'POST',body:JSON.stringify({code,name:'中心站',transformerCapacityKw:100})});
+    return loadStations();
+  }
+  cur = Number(sel.value);
+  await refresh();
+}
+
+async function refresh(){
+  if(!cur) return;
+  try{
+    const [ov, allSessions] = await Promise.all([
+      api(`/api/stations/${cur}/overview`),
+      api(`/api/stations/${cur}/sessions`),
+    ]);
+    data = ov;
+    data.sessionCode = {};
+    for(const s of allSessions) data.sessionCode[s.id] = s.code;
+    render();
+  }catch(e){ toast(e.message, true); }
+}
+
+function render(){
+  const d = data;
+  const s = d.station;
+  $('onlineBadge').innerHTML = `<span class="online-dot ${s.online?'on':'off'}"></span>${s.online?'站控在线':'站控断网'}`;
+  $('onlineBtn').textContent = s.online ? '断网' : '恢复联网';
+  $('kpiLoad').innerHTML = `${kw(d.loadKw)}<small> kW</small>`;
+  $('kpiCap').textContent = kw(s.transformer_capacity_kw);
+  $('gaugeBar').style.width = Math.min(100, d.utilization*100) + '%';
+  $('kpiActive').textContent = d.activeSessions.length;
+  $('kpiQueue').textContent = d.queue.length;
+  $('kpiBills').textContent = d.bills.length;
+
+  $('spots').innerHTML = d.spots.map(sp=>{
+    const sess = d.activeSessions.find(x=>x.spotId===sp.id);
+    return `<div class="spot">
+      <div class="code">${sp.code} <span class="pill ${sp.status}">${sp.status==='busy'?'占用':'空闲'}</span></div>
+      <div class="meta">${sess?`会话 ${sess.code}<br>${kw(sess.powerKw)} kW · 已充 ${yuan(sess.energyKwh)} 度<br><b>${yuan(sess.amount)} 元</b>`:'—'}</div>
+    </div>`;
+  }).join('') || '<div class="empty">暂无充电位</div>';
+
+  $('queue').innerHTML = d.queue.length ? `<table><thead><tr><th>请求ID</th><th>充电位</th><th>功率</th><th>提交时间</th></tr></thead><tbody>
+    ${d.queue.map(q=>`<tr><td class="mono">${q.requestId}</td><td>${q.spotCode}</td><td class="num">${kw(q.powerKw)} kW</td><td>${fmtTime(q.submittedAt)}</td></tr>`).join('')}
+    </tbody></table>` : '<div class="empty">队列空</div>';
+
+  $('active').innerHTML = d.activeSessions.length ? `<table><thead><tr><th>会话号</th><th>位</th><th>功率</th><th>开始</th><th>电量(度)</th><th>预估费用</th><th></th></tr></thead><tbody>
+    ${d.activeSessions.map(x=>`<tr>
+      <td class="mono">${x.code}</td><td>${d.spots.find(sp=>sp.id===x.spotId)?.code||'-'}</td>
+      <td class="num">${kw(x.powerKw)}</td><td>${fmtTime(x.startAt)}</td>
+      <td class="num">${yuan(x.energyKwh)}</td><td class="num"><b>${yuan(x.amount)}</b></td>
+      <td><button class="warn sm" onclick="quickStop('${x.code}')">停止</button></td></tr>`).join('')}
+    </tbody></table>` : '<div class="empty">无进行中会话</div>';
+
+  $('bills').innerHTML = d.bills.length ? `<table><thead><tr><th>账单号</th><th>会话号</th><th>电量(度)</th><th>金额</th><th>出账时间</th></tr></thead><tbody>
+    ${d.bills.map(b=>`<tr><td class="mono">${b.code}</td><td class="mono">${d.sessionCode[b.sessionId]||('#'+b.sessionId)}</td><td class="num">${yuan(b.energyKwh)}</td><td class="num">${yuan(b.amount)}</td><td>${fmtTime(b.issuedAt)}</td></tr>`).join('')}
+    </tbody></table>` : '<div class="empty">暂无账单</div>';
+
+  // 表单
+  $('fSpot').innerHTML = d.spots.map(sp=>`<option value="${sp.id}">${sp.code}（${sp.status==='busy'?'占用':'空闲'}）</option>`).join('');
+  $('fStopSession').innerHTML = '<option value="">-- 选择进行中会话 --</option>' + d.activeSessions.map(x=>`<option value="${x.id}">${x.code} · ${d.spots.find(sp=>sp.id===x.spotId)?.code} · ${kw(x.powerKw)}kW</option>`).join('');
+
+  // 电价
+  api(`/api/stations/${cur}/prices`).then(list=>{
+    if(!list.length){ $('priceCur').textContent=''; return; }
+    const sched = list[0];
+    $('priceCur').textContent = '当前：' + (sched.note||'') + '\n' + sched.periods.map(p=>`${p.name} ${String(Math.floor(p.start_minute/60)).padStart(2,'0')}:00-${String(Math.floor(p.end_minute/60)).padStart(2,'0')}:00  ${p.rate} 元/度`).join('\n');
+  });
+}
+
+async function doStart(){
+  const spotId = Number($('fSpot').value);
+  const powerKw = Number($('fPower').value);
+  const requestId = $('fReq').value.trim() || ('r' + Date.now());
+  try{
+    const r = await api(`/api/stations/${cur}/start`,{method:'POST',body:JSON.stringify({spotId,powerKw,requestId})});
+    toast(r.session? `已启动 ${r.session.code}` : `已排队（${r.entry.requestId}）`);
+    $('fReq').value='';
+    refresh();
+  }catch(e){ toast(e.message,true); }
+}
+async function doStop(){
+  const sessionId = Number($('fStopSession').value);
+  const reportId = $('fReport').value.trim() || ('stop-' + Date.now());
+  if(!sessionId) return toast('请选择会话',true);
+  try{
+    const r = await api(`/api/stations/${cur}/stop`,{method:'POST',body:JSON.stringify({sessionId,reportId})});
+    toast(`已出账 ${r.bill.code}：${yuan(r.bill.amount)} 元`);
+    $('fReport').value='';
+    refresh();
+  }catch(e){ toast(e.message,true); }
+}
+async function quickStop(code){
+  const x = data.activeSessions.find(s=>s.code===code);
+  if(!x) return;
+  const reportId = 'stop-' + code;
+  try{
+    const r = await api(`/api/stations/${cur}/stop`,{method:'POST',body:JSON.stringify({sessionId:x.id,reportId})});
+    toast(`已出账 ${r.bill.code}：${yuan(r.bill.amount)} 元`);
+    refresh();
+  }catch(e){ toast(e.message,true); }
+}
+async function toggleOnline(){
+  const on = data.station.online ? 0 : 1;
+  await api(`/api/stations/${cur}/online`,{method:'PATCH',body:JSON.stringify({online:!!on})});
+  toast(on?'已恢复联网':'已断网（会话保留，恢复后续计）');
+  refresh();
+}
+async function setPrice(kind){
+  const presets = {
+    tou: [
+      {name:'尖峰',start_minute:19*60,end_minute:21*60,rate:1.4},
+      {name:'高峰',start_minute:8*60,end_minute:11*60,rate:1.1},
+      {name:'平段',start_minute:11*60,end_minute:19*60,rate:0.8},
+      {name:'低谷',start_minute:23*60,end_minute:7*60,rate:0.4},
+    ],
+    flat1: [{name:'平段',start_minute:0,end_minute:1440,rate:1.0}],
+    flat2: [{name:'平段',start_minute:0,end_minute:1440,rate:2.0}],
+    flat3: [{name:'平段',start_minute:0,end_minute:1440,rate:3.0}],
+  };
+  const note = {tou:'默认分时',flat1:'全日1.0',flat2:'全日2.0',flat3:'全日3.0'}[kind];
+  try{
+    const r = await api(`/api/stations/${cur}/prices`,{method:'POST',body:JSON.stringify({periods:presets[kind],note})});
+    toast(`电价已调整，${r.recalculated} 个未结算会话已重算`);
+    refresh();
+  }catch(e){ toast(e.message,true); }
+}
+async function doReconcile(){
+  const period = $('reconPeriod').value.trim();
+  let entries;
+  try{ entries = JSON.parse($('reconEntries').value); }catch(e){ return toast('流水 JSON 格式错误',true); }
+  try{
+    const r = await api(`/api/stations/${cur}/reconciliation`,{method:'POST',body:JSON.stringify({period,entries})});
+    renderRecon(r);
+    toast('对账完成');
+  }catch(e){ toast(e.message,true); }
+}
+function renderRecon(r){
+  const s = r.summary;
+  const block = (title, rows, cls) => rows.length ? `<div style="margin-top:8px"><b class="${cls}">${title}（${rows.length}）</b>
+    <table><thead><tr><th>会话号</th><th>应收</th><th>渠道实收</th><th>差额</th></tr></thead><tbody>
+    ${rows.map(x=>`<tr><td class="mono">${x.sessionCode}</td><td class="num">${yuan(x.billAmount)}</td><td class="num">${yuan(x.channelAmount)}</td><td class="num">${x.difference==null?'-':(x.difference>0?'+':'')+yuan(x.difference)}</td></tr>`).join('')}
+    </tbody></table></div>` : '';
+  $('reconResult').innerHTML = `
+    <div class="row" style="gap:14px">
+      <span class="pill matched">平账 ${s.matched}</span>
+      <span class="pill under">少收 ${s.undercharged}</span>
+      <span class="pill over">多收 ${s.overcharged}</span>
+      <span class="pill waiting">缺账单 ${s.missingBill}</span>
+      <span class="pill waiting">渠道漏结 ${s.missingChannel}</span>
+    </div>
+    ${block('少收', r.undercharged, 'under')}
+    ${block('多收', r.overcharged, 'over')}
+    ${block('渠道有流水·本站无账单', r.missingBill, 'waiting')}
+    ${block('本站有账单·渠道漏结', r.missingChannel, 'waiting')}
+    ${!r.undercharged.length&&!r.overcharged.length&&!r.missingBill.length&&!r.missingChannel.length?'<div class="empty">✅ 全部平账，无差异</div>':''}
+  `;
+}
+async function demoRush(){
+  const spots = data.spots;
+  const a = spots[0];
+  const jobs = [[60,'晚高峰-1'],[40,'晚高峰-2'],[20,'晚高峰-3']];
+  for(const [p,label] of jobs){
+    try{ await api(`/api/stations/${cur}/start`,{method:'POST',body:JSON.stringify({spotId:a.id,powerKw:p,requestId:label})}); }catch(e){}
+  }
+  toast('已提交 3 单到 A 位：1 单开始，2 单排队');
+  refresh();
+}
+
+$('stationSelect').addEventListener('change', e=>{ cur = Number(e.target.value); refresh(); });
+setInterval(()=>{ if($('autoRefresh').checked) refresh(); }, 2000);
+loadStations();
+</script>
+</body>
+</html>

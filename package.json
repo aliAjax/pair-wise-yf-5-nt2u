@@ -1,0 +1,14 @@
+{
+  "name": "charging-ops",
+  "version": "1.0.0",
+  "description": "充电站运营台：排队调度 / 断网续计 / 电价重算 / 月度对账",
+  "main": "src/index.js",
+  "scripts": {
+    "start": "node src/index.js",
+    "test": "node test/scenario.js"
+  },
+  "dependencies": {
+    "better-sqlite3": "^11.3.0",
+    "express": "^4.19.2"
+  }
+}
